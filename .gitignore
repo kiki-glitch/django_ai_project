@@ -1,2 +1,42 @@
-/.env
-*/db.sqlite3
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django stuff
+*.log
+*.pot
+*.pyc
+db.sqlite3
+media/
+staticfiles/
+
+# Virtual environment
+env/
+venv/
+ENV/
+.env
+.venv/
+*.env
+
+# VS Code settings
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Coverage and test files
+.coverage
+htmlcov/
+*.cover
+*.py,cover
+*.log
+coverage.xml
+nosetests.xml
+test_*.py
+
+# Pipenv
+Pipfile.lock
+
+# Migrations (optional: ignore if you don't want to commit them un
