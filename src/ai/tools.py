@@ -1,50 +1,145 @@
 from documents.models import Document
-from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
+from langchain_core.tools import Tool
+from django.db.models import Q
 
-@tool
-def list_documents(config:RunnableConfig):
-    """
-    List the most recent 5 documents for the current user
-    """
-    # print(config)
-    limit = 5
-    configurable =  config.get('configurable') or config.get('metadata')
-    user_id = configurable.get('user_id')
-    qs = Document.objects.filter(owner_id=user_id ,active=True).order_by("-created_at")
-    response_data = []
-    for obj in qs[:limit]:
-        response_data.append(
-            {
-                "id":obj.id,
-                "title":obj.title
-            }
-        )
-    return response_data
+def make_list_documents_tool(config):
+    def _list_documents(limit: int = 5):
+        if limit > 25:
+            limit = 25
+
+        user_id = config.get('configurable', {}).get('user_id')
+        qs = Document.objects.filter(owner_id=user_id, active=True).order_by("-created_at")
+
+        return [
+            {"id": doc.id, "title": doc.title}
+            for doc in qs[:limit]
+        ]
+
+    return Tool.from_function(
+        name="list_documents",
+        func=_list_documents,
+        description="List up to 25 of the user's most recent documents."
+    )
 
 
-@tool
-def get_document(document_id:int, config:RunnableConfig):
-    """
-    Get details of a document of current user
-    """
-    configurable =  config.get('configurable') or config.get('metadata')
-    user_id = configurable.get('user_id')
-    if user_id is None:
-        raise Exception("Invalid request for user.")
-    try:
-        qs = Document.objects.get(owner_id=user_id,id=document_id, active=True)
-    except Document.DoesNotExist:
-        raise Exception("Document not found, try again")
-    except:
-        raise Exception("Invalid request for a document detail, try again")
-    response_data = {
-        "id": qs.id,
-        "title": qs.title
-    }
-    return response_data
+def make_get_document_tool(config):
+    def _get_document(document_id: int):
+        user_id = config.get('configurable', {}).get('user_id')
 
-document_tools = [
-    list_documents,
-    get_document
-]
+        try:
+            doc = Document.objects.get(id=document_id, owner_id=user_id, active=True)
+        except Document.DoesNotExist:
+            raise Exception("Document not found or access denied.")
+
+        return {
+            "id": doc.id,
+            "title": doc.title,
+            "content": doc.content,
+            "created_at": doc.created_at
+        }
+
+    return Tool.from_function(
+        name="get_document",
+        func=_get_document,
+        description="Get a document's full details using its ID."
+    )
+
+
+def make_create_document_tool(config):
+    def _create_document(title: str, content: str):
+        user_id = config.get("configurable", {}).get("user_id")
+        if not user_id:
+            raise Exception("Missing user_id in config")
+        doc = Document.objects.create(
+            owner_id=user_id, 
+            title=title, 
+            content=content, 
+            active=True)
+
+        return {
+            "id": doc.id,
+            "title": doc.title,
+            "content": doc.content,
+            "created_at": doc.created_at
+        }
+
+    return Tool.from_function(
+        name="create_document",
+        func=_create_document,
+        description="Create a new document with a title and content for the current user."
+    )
+
+
+def make_update_document_tool(config):
+    def _update_document(document_id: int, title: str = None, content: str = None):
+        user_id = config.get('configurable', {}).get('user_id')
+
+        try:
+            doc = Document.objects.get(id=document_id, owner_id=user_id, active=True)
+        except Document.DoesNotExist:
+            raise Exception("Document not found or access denied.")
+
+        if title:
+            doc.title = title
+        if content:
+            doc.content = content
+        if title or content:
+            doc.save()
+
+        return {
+            "id": doc.id,
+            "title": doc.title,
+            "content": doc.content,
+            "created_at": doc.created_at
+        }
+
+    return Tool.from_function(
+        name="update_document",
+        func=_update_document,
+        description="Update a document's title or content for the current user."
+    )
+
+
+def make_delete_document_tool(config):
+    def _delete_document(document_id: int):
+        user_id = config.get('configurable', {}).get('user_id')
+
+        try:
+            doc = Document.objects.get(id=document_id, owner_id=user_id, active=True)
+            doc.delete()
+        except Document.DoesNotExist:
+            raise Exception("Document not found or access denied.")
+
+        return {"message": "Document deleted successfully."}
+
+    return Tool.from_function(
+        name="delete_document",
+        func=_delete_document,
+        description="Delete a document by ID for the current user."
+    )
+
+
+def make_search_documents_tool(config):
+    def _search_documents(query: str, limit: int = 5):
+        if limit > 25:
+            limit = 25
+
+        user_id = config.get('configurable', {}).get('user_id')
+
+        qs = Document.objects.filter(
+            Q(owner_id=user_id),
+            Q(active=True),
+            Q(title__icontains=query) | Q(content__icontains=query)
+        ).order_by("-created_at")
+
+        return [
+            {"id": doc.id, "title": doc.title}
+            for doc in qs[:limit]
+        ]
+
+    return Tool.from_function(
+        name="search_documents",
+        func=_search_documents,
+        description="Search a user's documents by text in title or content. Max 25 results."
+    )
+
