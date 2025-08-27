@@ -1,15 +1,29 @@
 from documents.models import Document
 from langchain_core.tools import Tool
 from django.db.models import Q
+from langchain_core.pydantic_v1 import BaseModel, Field
+
+# Define schema using Pydantic
+class ListDocumentsInput(BaseModel):
+    limit: int = Field(default=5, description="Number of documents to return (max 25)")
 
 def make_list_documents_tool(config):
+    
     def _list_documents(limit: int = 5):
+        """
+        List the most recent LIMIT documents for the current user with maximum of 25.
+
+        Arguments:
+        limit: number of results
+        """
+        print("✅ [Tool] list_documents was called")
         if limit > 25:
             limit = 25
 
         user_id = config.get('configurable', {}).get('user_id')
         qs = Document.objects.filter(owner_id=user_id, active=True).order_by("-created_at")
 
+        
         return [
             {"id": doc.id, "title": doc.title}
             for doc in qs[:limit]
@@ -18,12 +32,14 @@ def make_list_documents_tool(config):
     return Tool.from_function(
         name="list_documents",
         func=_list_documents,
-        description="List up to 25 of the user's most recent documents."
+        description="List up to 25 of the user's most recent documents.",
+        args_schema=ListDocumentsInput
     )
 
 
 def make_get_document_tool(config):
     def _get_document(document_id: int):
+        print("✅ [Tool] get_documents was called")
         user_id = config.get('configurable', {}).get('user_id')
 
         try:
@@ -41,12 +57,13 @@ def make_get_document_tool(config):
     return Tool.from_function(
         name="get_document",
         func=_get_document,
-        description="Get a document's full details using its ID."
+        description="Retrieve a specific document’s full details (title, content, date) by its ID. Use when the user asks to open or view a document."
     )
 
 
 def make_create_document_tool(config):
     def _create_document(title: str, content: str):
+        print("✅ [Tool] create_documents was called")
         user_id = config.get("configurable", {}).get("user_id")
         if not user_id:
             raise Exception("Missing user_id in config")
@@ -66,12 +83,13 @@ def make_create_document_tool(config):
     return Tool.from_function(
         name="create_document",
         func=_create_document,
-        description="Create a new document with a title and content for the current user."
+        description="Create a new document for the user by providing a title and content. Use when the user asks to write, draft, or save a new document."
     )
 
 
 def make_update_document_tool(config):
     def _update_document(document_id: int, title: str = None, content: str = None):
+        print("✅ [Tool] update_documents was called")
         user_id = config.get('configurable', {}).get('user_id')
 
         try:
@@ -90,18 +108,21 @@ def make_update_document_tool(config):
             "id": doc.id,
             "title": doc.title,
             "content": doc.content,
-            "created_at": doc.created_at
+            "created_at": doc.created_at,
+            "updated_at": doc.updated_at,
+            "message": f"Document '{doc.title}' updated successfully."
         }
 
     return Tool.from_function(
         name="update_document",
         func=_update_document,
-        description="Update a document's title or content for the current user."
+        description="Update an existing document’s title or content. Use when the user asks to rename, fix, revise, modify, or correct a document."
     )
 
 
 def make_delete_document_tool(config):
     def _delete_document(document_id: int):
+        print("✅ [Tool] delete_document was called")
         user_id = config.get('configurable', {}).get('user_id')
 
         try:
@@ -115,12 +136,13 @@ def make_delete_document_tool(config):
     return Tool.from_function(
         name="delete_document",
         func=_delete_document,
-        description="Delete a document by ID for the current user."
+        description="Delete a document from the user’s list by specifying its ID. Use when the user wants to remove or erase a document."
     )
 
 
 def make_search_documents_tool(config):
     def _search_documents(query: str, limit: int = 5):
+        print("✅ [Tool] search_documents was called")
         if limit > 25:
             limit = 25
 
@@ -140,6 +162,6 @@ def make_search_documents_tool(config):
     return Tool.from_function(
         name="search_documents",
         func=_search_documents,
-        description="Search a user's documents by text in title or content. Max 25 results."
+        description="Search the user’s documents by keyword in title or content. Use when the user wants to find specific documents based on text."
     )
 

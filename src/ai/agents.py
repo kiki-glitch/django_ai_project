@@ -27,11 +27,15 @@ def get_document_agent(config, checkpointer=None):
     ]
 
     agent = create_react_agent(
+        name="document_agent",
         model=model,
         tools=document_tools,
-        prompt=("You are a helpful assistant for managing user documents. "
-            "Only use document tools when the user asks to create, update, delete, or view documents. "
-            "Do not create documents on your own unless the user asks explicitly."),
+        prompt=(
+            "You are a helpful assistant responsible for managing user documents. "
+            "You must use the tools provided to list, fetch, create, update, or delete documents. "
+            "NEVER guess, fabricate, or assume changes were made — always call a tool when the user asks for document actions. "
+            "If the user wants to modify, fix, rename, correct, or revise a document, you MUST use the update_document tool. "
+            "Respond only after successfully calling the tool."),
         checkpointer=checkpointer
     )
     return agent
@@ -46,9 +50,13 @@ def get_movie_discovery_agent(config, checkpointer=None):
     ]
 
     agent = create_react_agent(
+        name="movie_discovery_agent",
         model=model,
         tools=movie_tools,
-        prompt=("You are a helpful assistant in finding and discovering information about movies."),
+        prompt=(
+            "You are a helpful assistant that assists users in discovering and learning about movies. "
+            "You may search for movies and retrieve detailed information using your tools. "
+            "Always use tools to fetch or suggest movie content; never guess movie details."),
         checkpointer=checkpointer
     )
     return agent
