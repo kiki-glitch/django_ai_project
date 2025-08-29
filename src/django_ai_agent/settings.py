@@ -127,4 +127,5 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", default=None)
-TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+TMDB_API_KEY = os.getenv("TMDB_API_KEY", default=None)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", default=None)
