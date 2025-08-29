@@ -4,7 +4,7 @@ from langchain_groq import ChatGroq
 def get_groq_api_key():
     return settings.GROQ_API_KEY
 
-def get_groq_model(model="mixtral-8x7b-32768", **kwargs):
+def get_groq_model(model=None, **kwargs):
     if model is None:
         model = "llama-3.1-8b-instant"  # Fallback for compatibility
 

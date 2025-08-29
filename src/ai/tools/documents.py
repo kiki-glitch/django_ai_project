@@ -2,9 +2,7 @@ from documents.models import Document
 from langchain_core.tools import Tool
 from django.db.models import Q
 from typing import Any
-# from langchain_core.pydantic_v1 import BaseModel, Field
 from pydantic import field_validator, BaseModel, Field
-import json
 
 # Define schema using Pydantic
 class ListDocumentsInput(BaseModel):
@@ -20,32 +18,6 @@ class GetDocumentInput(BaseModel):
 class CreateDocumentInput(BaseModel):
     title: str = Field(..., description="Title of the new document")
     content: str = Field(..., description="Content of the new document as a string")
-
-    @field_validator("content", mode="before")
-    @classmethod
-    def flatten_content(cls, v: Any) -> str:
-        """Convert any nested content structure to a flat string."""
-        print(f"🔧 Validator received content: {type(v)} = {v}")
-        
-        if isinstance(v, dict):
-            # Handle nested structure like {"title": "...", "content": "..."}
-            if "content" in v:
-                result = str(v["content"])
-                print(f"🔧 Extracted nested content: {result}")
-                return result
-            else:
-                # If it's a dict without "content" key, stringify the whole thing
-                result = str(v)
-                print(f"🔧 Stringified dict: {result}")
-                return result
-        elif isinstance(v, str):
-            print(f"🔧 Content already string: {v}")
-            return v
-        else:
-            # Handle any other type
-            result = str(v)
-            print(f"🔧 Converted to string: {result}")
-            return result
 
 class UpdateDocumentInput(BaseModel):
     document_id: int = Field(..., description="ID of the document to update")
@@ -139,12 +111,6 @@ def make_get_document_tool(config):
         except Document.DoesNotExist:
             raise Exception("Document not found or access denied.")
 
-        # return {
-        #     "id": doc.id,
-        #     "title": doc.title,
-        #     "content": doc.content,
-        #     "created_at": doc.created_at
-        # }
 
     return Tool.from_function(
         name="get_document",
@@ -157,35 +123,16 @@ def make_create_document_tool(config):
     def _create_document(title: str, content: str):
 
         print(f"[Tool] create_document called with title='{title}', content type={type(content)}")
-        print(f"[Tool] Content preview: {content[:100]}..." if len(str(content)) > 100 else f"[Tool] Content: {content}")
-        
         user_id = config.get("configurable", {}).get("user_id")
         if not user_id:
             raise Exception("Missing user_id in config")
-        
-        # Additional safety check in case validator didn't work
-        if isinstance(content, dict):
-            print("[Tool] Content was still dict - applying fallback conversion")
-            if "content" in content:
-                content = str(content["content"])
-            else:
-                content = str(content)
-
-
         doc = Document.objects.create(
             owner_id=user_id, 
             title=title, 
             content=content, 
             active=True)
-
-        # return json.dumps({
-        #     "id": doc.id,
-        #     "title": doc.title,
-        #     "content": doc.content,
-        #     "created_at": doc.created_at.isoformat()  # optional formatting
-        # })
-        # Return a simple string message instead of complex dict
         return f"Document '{doc.title}' created successfully with ID {doc.id}"
+
     
     return Tool.from_function(
         name="create_document",
